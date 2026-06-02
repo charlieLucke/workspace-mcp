@@ -10,7 +10,7 @@
 
 ## Pending
 
-- [ ] **2026-06-02: Deploy workspace-mcp as a public connector.** Make the read-only
+- [x] **2026-06-02: Deploy workspace-mcp as a public connector.** Make the read-only
       introspection server reachable so an Opus planning chat can use it as a custom
       connector (the way brain-mcp is reached today). Mirror brain-mcp's deployment:
       a systemd user unit running this server with `WORKSPACE_MCP_TRANSPORT=http`,
@@ -21,3 +21,6 @@
       real meta-repo. **Why:** the server is built and tested but only runnable locally
       over stdio — deployment is the last step before actually planning with it.
       **Effort:** small — a `deploy/` unit + a GitHub OAuth app; no new code.
+      **Status (2026-06-02):** ✅ Deployed & live — systemd unit `workspace-mcp` running,
+      Tailscale Funnel on `:8443` → `localhost:9300`, public endpoint verified
+      (200 OAuth discovery / 401 without token). Last user step: add the connector in Claude.
