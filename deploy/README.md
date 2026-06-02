@@ -5,117 +5,113 @@
 > dependency graph, and scoped repo files without pasting files by hand.
 >
 > **Local use needs none of this:** just run `python -m workspace_mcp` (stdio transport,
-> no Funnel, no OAuth). The steps below are only for the public HTTP connector.
+> no Caddy, no Funnel, no OAuth). The steps below are only for the public HTTP connector.
 >
-> Mirrors `brain-mcp/deploy/`. Host below is the author's: `charliespc.taild04050.ts.net`.
+> Host below is the author's: `charliespc.taild04050.ts.net`.
 
-## Design (decided)
+## Why a reverse proxy (the key design decision)
 
-| Thing | Value | Why |
-|-------|-------|-----|
-| Internal bind | `0.0.0.0:9300` | `127.0.0.1` is unreachable from Windows under WSL2 mirrored networking → Funnel 502 |
-| Public port | **8443** | `:443` is already taken by brain-mcp (`/ → :9100`); Funnel allows 443/8443/10000 |
-| Public base URL | `https://charliespc.taild04050.ts.net:8443` | clean OAuth origin, no path prefix |
-| Connector URL | `https://charliespc.taild04050.ts.net:8443/mcp` | |
-| OAuth callback | `https://charliespc.taild04050.ts.net:8443/auth/callback` | |
-| Runtime deps | **none** | read-only over workspace files; titan/Qdrant/GPU not required |
+Claude custom connectors work reliably only on the **standard port 443**. brain-mcp already
+owns the node's single Tailscale Funnel at `:443 /`. Two MCP+OAuth servers cannot naively share
+one 443 host: the OAuth discovery (`/.well-known/oauth-protected-resource/...`) lives at the
+host root and would collide. A non-standard port (`:8443`) was tried and **Claude refused it**.
 
-## Prerequisites
+Solution: a **Caddy reverse proxy** fronts the one 443 Funnel and routes by path —
 
-- WSL2 with systemd (`/etc/wsl.conf` → `[boot]` `systemd=true`) and linger enabled
-  (`loginctl enable-linger <user>` — already set for the RAG services).
-- Tailscale on the Windows host with Funnel enabled for the node.
-- A GitHub OAuth app (section 2).
-
----
-
-## 1. systemd user service (WSL)
-
-Registered as **`linked`**, not `enabled` (consistent with the RAG services — no autostart;
-start on demand). It is lightweight (no GPU/VRAM), so you *may* `enable` it instead if you
-want the connector always available after boot.
-
-```bash
-systemctl --user link ~/projects/rag-workspace/repos/workspace-mcp/deploy/workspace-mcp.service
-systemctl --user daemon-reload
-systemctl --user start workspace-mcp
-systemctl --user status workspace-mcp
+```
+Claude ──443──▶ Tailscale Funnel ──▶ Caddy (:8088) ──┬── /      ─▶ brain-mcp     (:9100)
+                                                      └── /ws/*  ─▶ workspace-mcp (:9300)
 ```
 
----
+workspace-mcp's FastMCP `base_url` is set to `https://<host>/ws`, so it **advertises** all its
+OAuth/MCP URLs under `/ws` while still **serving** them at its own root. Caddy maps advertised→
+served (see `Caddyfile`), distinguished by the `/ws` marker — no collision with brain-mcp.
 
-## 2. Auth configuration (`.env`)
+| Thing | Value |
+|-------|-------|
+| Internal binds | brain-mcp `0.0.0.0:9100`, workspace-mcp `0.0.0.0:9300`, Caddy `:8088` (`bind 0.0.0.0`) |
+| Public base URL | `https://charliespc.taild04050.ts.net/ws` |
+| Connector URL | `https://charliespc.taild04050.ts.net/ws/mcp` |
+| OAuth callback | `https://charliespc.taild04050.ts.net/ws/auth/callback` |
+| Runtime deps | none (read-only over workspace files; titan/Qdrant/GPU not required) |
 
-Public exposure ⇒ OAuth required. Create `~/projects/rag-workspace/repos/workspace-mcp/.env`
-(gitignored — never commit it):
+> **Bind 0.0.0.0, never 127.0.0.1:** under WSL2 mirrored networking a loopback-only service is
+> unreachable from Windows, where the Funnel runs → Funnel returns 502. If you ever see a
+> blanket 502 for *both* connectors with services up internally, suspect a **degraded mirrored
+> bridge** (`ip -brief addr` shows only `lo`, no `ethN`) → fix with `wsl --shutdown` + restart.
+
+## Services (systemd user units)
+
+- `caddy` — **enabled** (autostarts): the 443 Funnel points at it, so it must always be up.
+- `workspace-mcp` — runs the server on `:9300` (HTTP transport).
+- brain-mcp / brain-watcher / titan-service — the existing RAG units (`linked`, started on demand).
+
+```bash
+# Caddy (reverse proxy)
+systemctl --user link  ~/projects/rag-workspace/repos/workspace-mcp/deploy/caddy.service
+systemctl --user enable --now caddy
+
+# workspace-mcp server
+systemctl --user link  ~/projects/rag-workspace/repos/workspace-mcp/deploy/workspace-mcp.service
+systemctl --user daemon-reload
+systemctl --user start workspace-mcp
+```
+
+## 1. Auth configuration (`.env`)
+
+`~/projects/rag-workspace/repos/workspace-mcp/.env` (gitignored — never commit):
 
 ```
 WORKSPACE_MCP_AUTH=github
-WORKSPACE_MCP_BASE_URL=https://charliespc.taild04050.ts.net:8443
+WORKSPACE_MCP_BASE_URL=https://charliespc.taild04050.ts.net/ws
 WORKSPACE_GITHUB_CLIENT_ID=Ov23li...
 WORKSPACE_GITHUB_CLIENT_SECRET=...
 WORKSPACE_GITHUB_ALLOWED_LOGINS=charlieLucke
 ```
 
-> Transport/host/port/workspace-root are already set by the service unit; only the OAuth
-> values belong in `.env`.
+GitHub OAuth app (https://github.com/settings/developers → OAuth Apps):
 
-Create the GitHub OAuth app (https://github.com/settings/developers → OAuth Apps → New):
+- **Homepage URL:** `https://charliespc.taild04050.ts.net/ws`
+- **Authorization callback URL:** `https://charliespc.taild04050.ts.net/ws/auth/callback`
 
-- **Homepage URL:** `https://charliespc.taild04050.ts.net:8443`
-- **Authorization callback URL:** `https://charliespc.taild04050.ts.net:8443/auth/callback`
+## 2. Caddy
 
-Only logins in `WORKSPACE_GITHUB_ALLOWED_LOGINS` are admitted; everyone else is rejected at
-the auth layer.
+The single binary lives at `~/bin/caddy` (standalone, no apt/sudo). Config: `deploy/Caddyfile`.
+Validate / reload after edits:
 
----
-
-## 3. Make it publicly reachable — Tailscale Funnel
-
-Claude connects custom connectors server-side from the Anthropic cloud, so the endpoint must
-be public. On the **Windows host** — note the distinct public port `8443` (do not disturb
-brain-mcp's funnel on `:443`):
-
-```powershell
-tailscale funnel --bg --https=8443 http://localhost:9300
-tailscale funnel status
+```bash
+~/bin/caddy validate --config ~/projects/rag-workspace/repos/workspace-mcp/deploy/Caddyfile
+systemctl --user reload caddy
 ```
 
-`tailscale funnel status` should now show **both**: `/ → :9100` (brain-mcp, port 443) and the
-`:8443 → :9300` mapping for workspace-mcp.
+## 3. Tailscale Funnel (Windows host)
 
-**502 at the Funnel?** Usual cause: workspace-mcp bound to `127.0.0.1` instead of `0.0.0.0`
-(see unit), or the service is down. Check from Windows: `iwr http://127.0.0.1:9300/mcp` must
-return `401`.
+Point the one 443 Funnel at Caddy (not directly at brain-mcp):
 
----
+```powershell
+tailscale funnel --bg http://localhost:8088
+tailscale funnel status   # expect: https://<host>/  ->  proxy http://localhost:8088
+```
+
+Rollback to brain-mcp-only (if Caddy is ever a problem): `tailscale funnel --bg http://localhost:9100`.
 
 ## 4. Add the connector in Claude
 
 Settings → Connectors → "Add custom connector":
 
-- **URL:** `https://charliespc.taild04050.ts.net:8443/mcp`
+- **URL:** `https://charliespc.taild04050.ts.net/ws/mcp`
 
-Claude runs the OAuth flow → GitHub login (allowed account) → done. The eight read-only tools
-become available: `list_repos`, `get_system_map`, `get_routing`, `get_contracts_overview`,
-`list_contracts`, `get_contract`, `dependency_graph`, `read_repo_file`.
+OAuth flow → GitHub login (allowed account) → the eight read-only tools appear: `list_repos`,
+`get_system_map`, `get_routing`, `get_contracts_overview`, `list_contracts`, `get_contract`,
+`dependency_graph`, `read_repo_file`.
 
----
-
-## 5. Smoke test
+## 5. Smoke test (through the public Funnel)
 
 ```bash
-# Service running?
-systemctl --user status workspace-mcp
-
-# OAuth discovery reachable locally (expected: 200)?
-curl -s -o /dev/null -w '%{http_code}\n' \
-  http://127.0.0.1:9300/.well-known/oauth-protected-resource/mcp
-
-# /mcp without a token (expected: 401)?
-curl -s -o /dev/null -w '%{http_code}\n' -X POST \
-  -H 'Content-Type: application/json' \
-  -H 'Accept: application/json, text/event-stream' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
-  http://127.0.0.1:9300/mcp
+H=https://charliespc.taild04050.ts.net
+# brain-mcp still works (root):
+curl -s -o /dev/null -w '%{http_code}\n' $H/.well-known/oauth-protected-resource/mcp     # 200
+# workspace-mcp on /ws:
+curl -s -o /dev/null -w '%{http_code}\n' $H/.well-known/oauth-protected-resource/ws/mcp  # 200
+curl -s -o /dev/null -w '%{http_code}\n' -X POST $H/ws/mcp                                # 401
 ```

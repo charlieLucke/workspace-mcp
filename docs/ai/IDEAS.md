@@ -21,6 +21,10 @@
       real meta-repo. **Why:** the server is built and tested but only runnable locally
       over stdio — deployment is the last step before actually planning with it.
       **Effort:** small — a `deploy/` unit + a GitHub OAuth app; no new code.
-      **Status (2026-06-02):** ✅ Deployed & live — systemd unit `workspace-mcp` running,
-      Tailscale Funnel on `:8443` → `localhost:9300`, public endpoint verified
-      (200 OAuth discovery / 401 without token). Last user step: add the connector in Claude.
+      **Status (2026-06-03):** ✅ Deployed & live on **port 443** via a Caddy reverse proxy
+      (`deploy/Caddyfile` + `deploy/caddy.service`): the one Tailscale Funnel → Caddy `:8088`,
+      which routes `/` → brain-mcp and `/ws` → workspace-mcp (base_url `https://host/ws`).
+      `:8443` was abandoned because Claude connectors require port 443. Both backends verified
+      externally through the funnel (200 discovery / 401 without token), brain-mcp intact.
+      Last user steps: set the GitHub OAuth callback to `https://host/ws/auth/callback` and add
+      the connector `https://host/ws/mcp` in Claude.
