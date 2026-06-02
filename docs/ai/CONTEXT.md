@@ -4,16 +4,22 @@
 
 ## What this project does
 
-*(One paragraph: what is this, who is it for, what problem does it solve?)*
+`workspace-mcp` is a read-only Model Context Protocol (MCP) server that exposes structural metadata and content of the workspace meta-repo (system maps, routing, contracts, dependency graphs, and scoped file reads) to planning chats.
 
 ## Stack
 - **Language:** Python 3.12+
+- **Core Library:** FastMCP (MCP server)
+- **Settings:** Pydantic-Settings (prefix: `WORKSPACE_`)
 - **Package manager:** uv
 - **Test runner:** pytest
 - **Lint/format:** ruff
 - **Type checker:** mypy (strict)
 - **CI:** GitHub Actions
 - **Pre-commit:** enabled
+
+## Security Invariants
+- **Read-Only Rule:** The server must under no circumstances define mutating, writing, command execution, or shell/code execution tools. Every tool is strictly a read.
+- **Path Traversal Sandboxing:** File read paths must be strictly checked using `is_relative_to` against the authorized base directories (e.g., repository roots or the contracts folder) to prevent directory traversal escapes.
 
 ## Project Layout
 ```
