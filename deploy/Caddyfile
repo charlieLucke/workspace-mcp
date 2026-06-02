@@ -1,0 +1,45 @@
+# Reverse proxy that puts BOTH MCP servers on the single Tailscale Funnel (:443),
+# so Claude's custom connector (which needs standard port 443) can reach workspace-mcp.
+#
+# Tailscale Funnel terminates TLS and proxies https://<host>/  ->  http://localhost:8088 (this).
+# This Caddy then routes by path:
+#   - workspace-mcp lives under /ws  (its FastMCP base_url is https://<host>/ws)
+#   - brain-mcp keeps the root        (its base_url is https://<host>)
+#
+# The tricky part is OAuth/MCP discovery (RFC 9728 / RFC 8414). FastMCP serves all routes
+# at its own root but ADVERTISES them with the /ws prefix (driven by base_url). So we map
+# advertised -> served, distinguished by the /ws marker. Verified against the live backend:
+#   served at :9300 root            advertised to the client
+#   /mcp                            https://host/ws/mcp
+#   /authorize /token /register     https://host/ws/...
+#   /auth/callback                  https://host/ws/auth/callback
+#   /.well-known/oauth-authorization-server        (AS metadata, root)
+#   /.well-known/oauth-protected-resource/ws/mcp   (resource metadata, /ws in the SUFFIX)
+
+# Plain HTTP on 8088 (site address ":8088" → no automatic HTTPS, no :80 redirect; the
+# Funnel terminates TLS). `bind 0.0.0.0` forces the IPv4 wildcard — same reason brain-mcp
+# uses BRAIN_MCP_HOST=0.0.0.0: under WSL2 mirrored networking the Windows-side Funnel
+# reaches WSL via the IPv4 wildcard, not an IPv6-only bind.
+:8088 {
+	bind 0.0.0.0
+	route {
+		# 1) workspace resource metadata: backend serves it WITH the /ws suffix -> pass as-is.
+		reverse_proxy /.well-known/oauth-protected-resource/ws/mcp 127.0.0.1:9300
+
+		# 2) workspace AS metadata, RFC 8414 path-aware form (.../oauth-authorization-server/ws):
+		#    backend serves it at its root -> drop the /ws suffix.
+		handle /.well-known/oauth-authorization-server/ws {
+			rewrite * /.well-known/oauth-authorization-server
+			reverse_proxy 127.0.0.1:9300
+		}
+
+		# 3) everything else under /ws (mcp, authorize, token, register, auth/callback, and the
+		#    path-append AS form /ws/.well-known/...): strip the /ws prefix, forward to :9300 root.
+		handle_path /ws/* {
+			reverse_proxy 127.0.0.1:9300
+		}
+
+		# 4) default: brain-mcp (production connector) keeps the root unchanged.
+		reverse_proxy 127.0.0.1:9100
+	}
+}

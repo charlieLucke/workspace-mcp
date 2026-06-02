@@ -1,0 +1,15 @@
+[Unit]
+Description=Caddy reverse proxy — fronts the :443 Tailscale Funnel for brain-mcp (/) + workspace-mcp (/ws)
+# Always-on (enabled): the 443 funnel points here, so this must be up whenever the funnel is.
+# If a backend (brain-mcp / workspace-mcp) is stopped, Caddy simply returns 502 for that path —
+# same external behaviour as before, when the funnel pointed straight at the backend.
+
+[Service]
+Type=simple
+ExecStart=/home/charl/bin/caddy run --config /home/charl/projects/rag-workspace/repos/workspace-mcp/deploy/Caddyfile
+ExecReload=/home/charl/bin/caddy reload --config /home/charl/projects/rag-workspace/repos/workspace-mcp/deploy/Caddyfile --force
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
