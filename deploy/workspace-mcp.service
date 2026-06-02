@@ -1,0 +1,25 @@
+[Unit]
+Description=Workspace MCP Server (read-only workspace introspection over HTTP)
+# No After/Wants on titan: this server is read-only over the workspace files and has
+# NO runtime dependency on titan, Qdrant, or the GPU. It can run even when the RAG
+# stack is stopped (gaming mode).
+
+[Service]
+Type=simple
+WorkingDirectory=/home/charl/projects/rag-workspace/repos/workspace-mcp
+ExecStart=/home/charl/projects/rag-workspace/repos/workspace-mcp/.venv/bin/python -m workspace_mcp
+Restart=on-failure
+RestartSec=10
+Environment="WORKSPACE_MCP_TRANSPORT=http"
+# Bind 0.0.0.0, not 127.0.0.1: under WSL2 mirrored networking a loopback-only service
+# is NOT reachable from Windows (the Tailscale Funnel runs on Windows), so 127.0.0.1
+# makes the funnel return 502. Access stays gated by GitHub OAuth.
+Environment="WORKSPACE_MCP_HOST=0.0.0.0"
+Environment="WORKSPACE_MCP_PORT=9300"
+# The meta-repo the tools read. Explicit so it does not depend on the cwd-relative default.
+Environment="WORKSPACE_WORKSPACE_ROOT=/home/charl/projects/rag-workspace"
+# OAuth settings (WORKSPACE_MCP_AUTH, WORKSPACE_MCP_BASE_URL, WORKSPACE_GITHUB_*) live in
+# .env (gitignored) in WorkingDirectory — never commit secrets to the unit file.
+
+[Install]
+WantedBy=default.target
