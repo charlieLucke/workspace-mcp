@@ -6,10 +6,10 @@
 
 ## This repo
 - **Service name:** workspace-mcp
-- **Role:** <one-line responsibility>
-- **Consumes:** <other services this repo calls, by contract>
-- **Exposes:** <contract this repo publishes>
-- **Port (local):** <port or n/a>
+- **Role:** Read-only MCP server exposing the workspace (map, routing, contracts, graph) to planning chats
+- **Consumes:** —
+- **Exposes:** contracts/workspace-mcp.tools.json
+- **Port (local):** 9300
 
 ## Where the system brain lives
 The coordinating workspace repo holds the cross-repo picture:
@@ -24,4 +24,38 @@ a system: **a change at this repo's boundary (its exposed contract) is a workspa
 decision** — stop and surface it rather than changing the interface here.
 
 <!-- SHARED-AGENT-RULES:START (synced from workspace shared/agent-rules.md — do not edit here) -->
+
+# Shared Agent Rules
+
+> Canonical convention fragment. The single-repo template's `CLAUDE.md` already carries the
+> per-repo rules; this file is the **system-wide** delta that every child repo must also
+> honor. `./workspace.sh sync-shared` appends/refreshes this block inside each child's
+> `docs/ai/SYSTEM_LINK.md`. Edit it **here only** — never per repo.
+
+## You are part of a larger system
+
+This repo does not stand alone. It is one service in `rag-system`. Before changing
+anything that another repo can observe:
+
+- Check whether the change crosses a **contract**. If it does, stop — that is a workspace
+  (Opus-level) decision, not a local one. Surface it.
+- Your inputs and outputs at the boundary are defined in the workspace `contracts/`.
+  Treat them as fixed unless a workspace plan says otherwise.
+- Keep this repo **standalone-runnable**: don't import another service's code; talk to it
+  only through its contract.
+
+## What stays local vs. goes up
+
+- A decision about *this* repo's internals → local `docs/ai/DECISIONS.md`.
+- A decision affecting how this repo talks to others → workspace `docs/ai/DECISIONS.md`.
+- An out-of-scope idea touching only this repo → local `IDEAS.md`; touching others →
+  workspace `IDEAS.md`.
+
+## Boundary discipline
+
+- Don't widen this repo's public surface casually — every new endpoint/field is a contract.
+- Don't read another service's database, files, or internals directly.
+- When you change behavior at the boundary, the contract change lands *with* the code, and
+  every consumer is updated in the same workspace feature.
+
 <!-- SHARED-AGENT-RULES:END -->
