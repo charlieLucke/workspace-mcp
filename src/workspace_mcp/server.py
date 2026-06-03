@@ -90,6 +90,20 @@ def _manifest(*args: str) -> str:
     return res.stdout
 
 
+# Files read_repo_file is allowed to return: source, docs, config — never secrets.
+# The sandbox stops escaping a repo; this allowlist stops reading secrets *inside* it.
+_ALLOWED_SUFFIXES: frozenset[str] = frozenset(
+    {
+        ".py", ".pyi", ".md", ".rst", ".txt", ".toml", ".yaml", ".yml", ".json",
+        ".ini", ".cfg", ".conf", ".sh", ".bash", ".sql", ".js", ".ts", ".tsx",
+        ".jsx", ".html", ".css", ".lock",
+    }
+)
+_ALLOWED_NAMES: frozenset[str] = frozenset(
+    {"Makefile", "Dockerfile", "README", "LICENSE", "CHANGELOG"}
+)
+
+
 # ---------------------------------------------------------------------------
 # MCP Tools
 # ---------------------------------------------------------------------------
@@ -230,6 +244,19 @@ def read_repo_file(repo: str, relpath: str) -> str:
 
         if not target.is_relative_to(base):
             return f"Error: Path {relpath!r} is outside the repository sandbox ({repo})."
+
+        # Security: never serve secret-bearing or non-text files. Block dotfiles/dot-dirs
+        # anywhere in the requested path (.env, .git, .venv, .ssh, ...) and restrict to a
+        # known source/docs/config allowlist.
+        rel_parts = target.relative_to(base).parts
+        if any(part.startswith(".") for part in rel_parts):
+            return f"Error: {relpath!r} is blocked (dotfiles/secret files are not readable)."
+        if target.name not in _ALLOWED_NAMES and target.suffix.lower() not in _ALLOWED_SUFFIXES:
+            return (
+                f"Error: file type of {relpath!r} is not permitted "
+                "(only source, docs and config — never secrets)."
+            )
+
         if not target.is_file():
             return f"Error: File {relpath!r} not found in repository {repo}."
 

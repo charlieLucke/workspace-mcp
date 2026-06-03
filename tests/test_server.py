@@ -200,3 +200,32 @@ def test_read_repo_file_size_cap(tmp_workspace: Path) -> None:
     res = read_repo_file("titan", "large.txt")
     assert res.startswith("Error:")
     assert "exceeds the size limit of 200 KB" in res
+
+
+def test_read_repo_file_blocks_dotenv(tmp_workspace: Path) -> None:
+    """read_repo_file refuses .env (secret leak) even though it is inside the sandbox."""
+    (tmp_workspace / "repos" / "titan" / ".env").write_text(
+        "SECRET=should-never-be-served", encoding="utf-8"
+    )
+    res = read_repo_file("titan", ".env")
+    assert res.startswith("Error:")
+    assert "blocked" in res
+    assert "should-never-be-served" not in res
+
+
+def test_read_repo_file_blocks_dotdir(tmp_workspace: Path) -> None:
+    """read_repo_file refuses files under a dot-directory (e.g. .git/, .venv/)."""
+    gitdir = tmp_workspace / "repos" / "titan" / ".git"
+    gitdir.mkdir()
+    (gitdir / "config").write_text("[remote] token=secret", encoding="utf-8")
+    res = read_repo_file("titan", ".git/config")
+    assert res.startswith("Error:")
+    assert "blocked" in res
+
+
+def test_read_repo_file_blocks_disallowed_extension(tmp_workspace: Path) -> None:
+    """read_repo_file refuses non-text/secret-bearing extensions (e.g. .pem)."""
+    (tmp_workspace / "repos" / "titan" / "key.pem").write_text("PRIVATE KEY", encoding="utf-8")
+    res = read_repo_file("titan", "key.pem")
+    assert res.startswith("Error:")
+    assert "not permitted" in res
