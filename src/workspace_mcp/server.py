@@ -94,9 +94,28 @@ def _manifest(*args: str) -> str:
 # The sandbox stops escaping a repo; this allowlist stops reading secrets *inside* it.
 _ALLOWED_SUFFIXES: frozenset[str] = frozenset(
     {
-        ".py", ".pyi", ".md", ".rst", ".txt", ".toml", ".yaml", ".yml", ".json",
-        ".ini", ".cfg", ".conf", ".sh", ".bash", ".sql", ".js", ".ts", ".tsx",
-        ".jsx", ".html", ".css", ".lock",
+        ".py",
+        ".pyi",
+        ".md",
+        ".rst",
+        ".txt",
+        ".toml",
+        ".yaml",
+        ".yml",
+        ".json",
+        ".ini",
+        ".cfg",
+        ".conf",
+        ".sh",
+        ".bash",
+        ".sql",
+        ".js",
+        ".ts",
+        ".tsx",
+        ".jsx",
+        ".html",
+        ".css",
+        ".lock",
     }
 )
 _ALLOWED_NAMES: frozenset[str] = frozenset(
