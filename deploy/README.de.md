@@ -7,7 +7,8 @@
 > **Lokale Nutzung braucht nichts davon:** einfach `python -m workspace_mcp` ausführen (stdio-Transport,
 > kein Caddy, keine Funnel, kein OAuth). Die Schritte unten sind nur für den öffentlichen HTTP-Connector.
 >
-> Der Host unten ist der des Autors: `charliespc.taild04050.ts.net`.
+> Der Host unten ist ein **Platzhalter** — ersetze `<your-tailnet-host>.ts.net` durch
+> deinen eigenen Tailscale-Funnel-Host.
 
 ## Warum ein Reverse-Proxy (die zentrale Design-Entscheidung)
 
@@ -30,9 +31,9 @@ bedient (siehe `Caddyfile`), unterschieden durch den `/ws`-Marker — keine Koll
 | Sache | Wert |
 |-------|-------|
 | Interne Binds | brain-mcp `0.0.0.0:9100`, workspace-mcp `0.0.0.0:9300`, Caddy `:8088` (`bind 0.0.0.0`) |
-| Öffentliche Basis-URL | `https://charliespc.taild04050.ts.net/ws` |
-| Connector-URL | `https://charliespc.taild04050.ts.net/ws/mcp` |
-| OAuth-Callback | `https://charliespc.taild04050.ts.net/ws/auth/callback` |
+| Öffentliche Basis-URL | `https://<your-tailnet-host>.ts.net/ws` |
+| Connector-URL | `https://<your-tailnet-host>.ts.net/ws/mcp` |
+| OAuth-Callback | `https://<your-tailnet-host>.ts.net/ws/auth/callback` |
 | Runtime-Deps | keine (read-only über Workspace-Dateien; titan/Qdrant/GPU nicht erforderlich) |
 
 > **An 0.0.0.0 binden, nie 127.0.0.1:** unter WSL2 Mirrored Networking ist ein reiner Loopback-Service
@@ -63,7 +64,7 @@ systemctl --user start workspace-mcp
 
 ```
 WORKSPACE_MCP_AUTH=github
-WORKSPACE_MCP_BASE_URL=https://charliespc.taild04050.ts.net/ws
+WORKSPACE_MCP_BASE_URL=https://<your-tailnet-host>.ts.net/ws
 WORKSPACE_GITHUB_CLIENT_ID=Ov23li...
 WORKSPACE_GITHUB_CLIENT_SECRET=...
 WORKSPACE_GITHUB_ALLOWED_LOGINS=charlieLucke
@@ -71,8 +72,8 @@ WORKSPACE_GITHUB_ALLOWED_LOGINS=charlieLucke
 
 GitHub-OAuth-App (https://github.com/settings/developers → OAuth Apps):
 
-- **Homepage URL:** `https://charliespc.taild04050.ts.net/ws`
-- **Authorization callback URL:** `https://charliespc.taild04050.ts.net/ws/auth/callback`
+- **Homepage URL:** `https://<your-tailnet-host>.ts.net/ws`
+- **Authorization callback URL:** `https://<your-tailnet-host>.ts.net/ws/auth/callback`
 
 ## 2. Caddy
 
@@ -99,7 +100,7 @@ Rollback auf nur-brain-mcp (falls Caddy je ein Problem ist): `tailscale funnel -
 
 Einstellungen → Connectors → „Add custom connector":
 
-- **URL:** `https://charliespc.taild04050.ts.net/ws/mcp`
+- **URL:** `https://<your-tailnet-host>.ts.net/ws/mcp`
 
 OAuth-Flow → GitHub-Login (erlaubtes Konto) → die acht read-only-Tools erscheinen: `list_repos`,
 `get_system_map`, `get_routing`, `get_contracts_overview`, `list_contracts`, `get_contract`,
@@ -108,7 +109,7 @@ OAuth-Flow → GitHub-Login (erlaubtes Konto) → die acht read-only-Tools ersch
 ## 5. Smoke-Test (durch die öffentliche Funnel)
 
 ```bash
-H=https://charliespc.taild04050.ts.net
+H=https://<your-tailnet-host>.ts.net
 # brain-mcp funktioniert weiterhin (Root):
 curl -s -o /dev/null -w '%{http_code}\n' $H/.well-known/oauth-protected-resource/mcp     # 200
 # workspace-mcp auf /ws:
