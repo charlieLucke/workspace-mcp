@@ -6,8 +6,8 @@ Description=Workspace MCP Server (read-only workspace introspection over HTTP)
 
 [Service]
 Type=simple
-WorkingDirectory=/home/<your-user>/projects/rag-workspace/repos/workspace-mcp
-ExecStart=/home/<your-user>/projects/rag-workspace/repos/workspace-mcp/.venv/bin/python -m workspace_mcp
+WorkingDirectory=/home/charl/projects/rag-workspace/repos/workspace-mcp
+ExecStart=/home/charl/projects/rag-workspace/repos/workspace-mcp/.venv/bin/python -m workspace_mcp
 Restart=on-failure
 RestartSec=10
 Environment="WORKSPACE_MCP_TRANSPORT=http"
@@ -17,7 +17,7 @@ Environment="WORKSPACE_MCP_TRANSPORT=http"
 Environment="WORKSPACE_MCP_HOST=0.0.0.0"
 Environment="WORKSPACE_MCP_PORT=9300"
 # The meta-repo the tools read. Explicit so it does not depend on the cwd-relative default.
-Environment="WORKSPACE_WORKSPACE_ROOT=/home/<your-user>/projects/rag-workspace"
+Environment="WORKSPACE_WORKSPACE_ROOT=/home/charl/projects/rag-workspace"
 # OAuth settings (WORKSPACE_MCP_AUTH, WORKSPACE_MCP_BASE_URL, WORKSPACE_GITHUB_*) live in
 # .env (gitignored) in WorkingDirectory — never commit secrets to the unit file.
 
