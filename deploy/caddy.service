@@ -6,8 +6,8 @@ Description=Caddy reverse proxy — fronts the :443 Tailscale Funnel for brain-m
 
 [Service]
 Type=simple
-ExecStart=/home/charl/bin/caddy run --config /home/charl/projects/rag-workspace/repos/workspace-mcp/deploy/Caddyfile
-ExecReload=/home/charl/bin/caddy reload --config /home/charl/projects/rag-workspace/repos/workspace-mcp/deploy/Caddyfile --force
+ExecStart=/home/<your-user>/bin/caddy run --config /home/<your-user>/projects/rag-workspace/repos/workspace-mcp/deploy/Caddyfile
+ExecReload=/home/<your-user>/bin/caddy reload --config /home/<your-user>/projects/rag-workspace/repos/workspace-mcp/deploy/Caddyfile --force
 Restart=on-failure
 RestartSec=5
 
