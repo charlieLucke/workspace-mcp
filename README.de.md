@@ -1,24 +1,84 @@
-# workspace_mcp
+# workspace-mcp
 
-Read-only-MCP-Server, der den Workspace für Planungs-Chats bereitstellt
+**Ein read-only MCP-Server, der einer Planungs-KI ein ganzes Multi-Repo-System
+direkt lesbar macht — Architekturkarte, Routing, Contracts, Abhängigkeitsgraph und
+gescopte Repo-Dateien — statt Dateien von Hand einzufügen.**
 
+Er ist die Design-Zeit-Introspektionsschicht für ein lokales RAG-System aus mehreren
+unabhängigen Service-Repos (titan, brain-mcp, brain-dashboard, obsidian-inbox-watcher),
+koordiniert von einem Workspace-„Meta-Repo".
+
+## Das Problem, das er löst
+
+Eine Änderung über mehrere Repos hinweg zu entwerfen heißt: ein starkes
+Reasoning-Modell (z. B. Claude/Opus in einem Planungs-Chat) muss das System *sehen* —
+welcher Service was besitzt, welche Contracts sie koppeln, wie der echte Code aussieht.
+Ohne Tooling kopiert man Dateien von Hand in den Chat. workspace-mcp stellt diesen
+Kontext als MCP-Tools bereit, sodass das Planungsmodell den Live-Workspace selbst liest.
+
+```mermaid
+flowchart LR
+    P(("Planungs-Chat<br/>(Claude / Opus)")) <-->|"MCP-Tools (read-only)"| W["workspace-mcp"]
+    W -->|"liest"| WS["Workspace-Meta-Repo<br/>SYSTEM.md · ROUTING.md · contracts/ · repos/*"]
+    classDef here fill:#2b6cb0,stroke:#1a365d,color:#fff,stroke-width:2px;
+    class W here
+```
+
+## Werkzeuge (alle strikt read-only)
+
+| Werkzeug | Liefert |
+|---|---|
+| `list_repos` | Service-Namen + Rollen aus dem Manifest |
+| `get_system_map` | das System-Architektur- & Datenfluss-Dokument |
+| `get_routing` | welches Repo welche Art von Änderung besitzt |
+| `get_contracts_overview` | die menschenlesbaren Inter-Service-Contracts |
+| `list_contracts` | die maschinenlesbaren Contract-Dateien |
+| `get_contract` | den Inhalt eines Contracts (gesandboxt) |
+| `dependency_graph` | die Konsument → Provider-Kanten zwischen Services |
+| `read_repo_file` | eine einzelne Repo-Datei (gesandboxt, read-only, größenbegrenzt) |
+
+## Design-Highlights
+
+- **Read-only als harte Security-Grenze.** Der Server soll über denselben
+  öffentlichen Pfad erreichbar sein wie der andere Connector des Systems — er darf
+  also nie das Repo schreiben oder Befehle ausführen können. Jedes Tool ist ein
+  reiner Read; es gibt by design keine Schreib-/Scaffold-/Exec-Tools.
+- **Path-Traversal-Sandboxing.** `read_repo_file` und `get_contract` lösen den
+  Zielpfad auf und lehnen alles ab, was das autorisierte Basis-Verzeichnis verlässt
+  (`is_relative_to`-Check) — keine `..`- oder Absolutpfad-Escapes.
+- **Reverse-Proxy-Deployment.** Claude-Custom-Connectors funktionieren nur auf Port
+  443 zuverlässig, aber der einzige Tailscale-Funnel-Root des Nodes ist bereits von
+  einem anderen MCP-Server belegt. Ein **Caddy-Reverse-Proxy** steht vor der einen
+  443-Funnel und routet nach Pfad (`/` → der andere Server, `/ws/*` → workspace-mcp);
+  der Server bewirbt seine OAuth-/MCP-URLs unter `/ws`. Siehe
+  [`deploy/README.de.md`](deploy/README.de.md).
+- **Wiederverwendung bestehender Tools.** Graph-/Manifest-Abfragen rufen das eigene,
+  getestete `scripts/manifest.py` des Workspaces auf, statt YAML neu zu parsen.
+- **Auth.** Im öffentlichen HTTP-Modus gatet ein GitHub-OAuth-Proxy mit Login-Allowlist
+  jeden Request (spiegelt das Schwester-Pattern von brain-mcp). Im lokalen
+  `stdio`-Modus ist keine Auth nötig.
 
 ## Einrichtung
 
 Erfordert [uv](https://docs.astral.sh/uv/) und Python 3.12+.
 
 ```bash
-make install
+make install    # Abhängigkeiten + pre-commit-Hooks installieren
 ```
 
-Das installiert alle Abhängigkeiten und registriert pre-commit-Hooks.
+Lokal über stdio ausführen (kein Caddy, keine Funnel, kein OAuth):
+
+```bash
+python -m workspace_mcp     # WORKSPACE_ROOT zeigt auf den Workspace-Checkout
+```
+
+Das Deployment als öffentlicher Connector (Caddy + Tailscale Funnel + GitHub OAuth)
+ist in [`deploy/README.de.md`](deploy/README.de.md) dokumentiert.
 
 ## Entwicklung
 
 ```bash
-make dev        # Dev-Server starten (im Makefile definieren)
-make test       # Tests mit Coverage ausführen
-make test-fast  # nur schnelle Tests ausführen
+make test       # Tests mit Coverage (inkl. Path-Traversal-Ablehnungs-Test)
 make check      # vollständiges Quality-Gate: Lint + Typen + Tests
 make format     # Style-Probleme automatisch beheben
 make help       # alle verfügbaren Befehle auflisten
@@ -27,9 +87,10 @@ make help       # alle verfügbaren Befehle auflisten
 ## Projektstruktur
 
 ```
-src/workspace_mcp/    Quellcode
+src/workspace_mcp/    Quellcode (Config, Auth, die read-only MCP-Tools)
 tests/               Pytest-Tests (spiegelt das src/-Layout)
-docs/ai/             Kontext und Pläne für KI-Agenten
+deploy/              Caddy + systemd-Units + Connector-Anleitung
+docs/ai/             Architektur, Entscheidungen und Pläne
 .github/workflows/   CI-Konfiguration
 ```
 
@@ -45,27 +106,14 @@ docs/ai/             Kontext und Pläne für KI-Agenten
 
 Alle Tools laufen bei jedem Push in der CI.
 
-## Arbeiten mit KI-Tools
+## Dokumentation & Entwickler-Workflow
 
-Dieses Projekt nutzt einen strukturierten Workflow für KI-gestütztes Coding. Jeder
-KI-Agent (Claude, Gemini, Cursor, Aider usw.) sollte zuerst `CLAUDE.md` lesen — sie
-ist als `AGENTS.md` und `GEMINI.md` für Tool-Kompatibilität gespiegelt.
+Vertiefende Architektur- und Designentscheidungen liegen in [`docs/ai/`](docs/ai/).
+Diese Dateien dienen zugleich einem strukturierten KI-gestützten Entwicklungsworkflow;
+`CLAUDE.md` (gespiegelt als `AGENTS.md`/`GEMINI.md`) ist der Einstiegspunkt für jeden Agenten.
 
-Wichtige Dateien für den KI-Kontext:
-
-- `docs/ai/CONTEXT.md` — Stack, Konventionen, Glossar
-- `docs/ai/CURRENT_TASK.md` — woran aktiv gearbeitet wird
-- `docs/ai/HANDOFF.md` — Zustand für die Fortsetzung von Sitzungen über Modellwechsel hinweg
-- `docs/ai/DECISIONS.md` — Protokoll der Architekturentscheidungen
-- `docs/ai/plans/` — gespeicherte Pläne, erstellt von einem Planungsmodell (z. B. Opus)
-
-Der vorgesehene Workflow:
-
-1. Architektur- und Feature-Pläne werden von einem starken Reasoning-Modell erstellt und unter `docs/ai/plans/` gespeichert
-2. Ein schnelleres/günstigeres Modell implementiert die Pläne
-3. Beide referenzieren den gemeinsamen Kontext in `docs/ai/`
-4. Der Zustand wird über `HANDOFF.md` über Sitzungen hinweg bewahrt
+🇬🇧 An English version of this README is available at [README.md](README.md).
 
 ## Lizenz
 
-Noch offen (TBD)
+MIT — siehe [LICENSE](LICENSE).
