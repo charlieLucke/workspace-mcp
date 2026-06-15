@@ -10,6 +10,8 @@
 
 ## Pending
 
+- [ ] **2026-06-15: `project_status` / docs-ai reader tool — answer "what's the state / what's planned next".** `read_repo_file` can already read any `docs/ai/*` file within the sandbox, so ad-hoc reads work today; what's missing is a one-call aggregator so a model (local or cloud) need not know the file layout. Add a tool that — per repo or across all — returns the current planning surface: `CURRENT_TASK.md` + `IDEAS.md` (pending only) + newest `HANDOFF.md`/`plans/*`, plus the workspace-level `docs/ai/{CURRENT_TASK,HANDOFF,PLANNING}.md`. Return structured markdown (repo → sections) so the model can summarise "status / next steps" without fuzzy search. **Why:** status/plan questions want the *authoritative current* file, not semantic top-k — a direct read beats RAG here and never goes stale. Pairs with the local-chatbot idea in brain-dashboard (its "project" mode would call this). Strictly read-only/sandboxed like the rest. *Effort: Low–Medium (one tool over the existing file-read + a small file-selection convention).*
+
 - [x] **2026-06-02: Deploy workspace-mcp as a public connector.** Make the read-only
       introspection server reachable so an Opus planning chat can use it as a custom
       connector (the way brain-mcp is reached today). Mirror brain-mcp's deployment:
