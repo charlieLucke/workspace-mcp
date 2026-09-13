@@ -1,75 +1,75 @@
-# Project Context
+# Projektkontext
 
-> Read this first. Keep under 200 lines. Update as the project evolves.
+> Zuerst lesen. Unter 200 Zeilen halten. Mit der Weiterentwicklung des Projekts aktualisieren.
 
-## What this project does
+## Was dieses Projekt macht
 
-`workspace-mcp` is a read-only Model Context Protocol (MCP) server that exposes structural metadata and content of the workspace meta-repo (system maps, routing, contracts, dependency graphs, and scoped file reads) to planning chats.
+`workspace-mcp` ist ein read-only Model-Context-Protocol-(MCP-)Server, der strukturelle Metadaten und Inhalte des Workspace-Meta-Repos (Systemkarten, Routing, Contracts, Abhängigkeitsgraphen und gescopte File-Reads) für Planungs-Chats bereitstellt.
 
 ## Stack
-- **Language:** Python 3.12+
-- **Core Library:** FastMCP (MCP server)
-- **Settings:** Pydantic-Settings (prefix: `WORKSPACE_`)
-- **Package manager:** uv
-- **Test runner:** pytest
-- **Lint/format:** ruff
-- **Type checker:** mypy (strict)
+- **Sprache:** Python 3.12+
+- **Kern-Bibliothek:** FastMCP (MCP-Server)
+- **Settings:** Pydantic-Settings (Präfix: `WORKSPACE_`)
+- **Paketmanager:** uv
+- **Test-Runner:** pytest
+- **Lint/Format:** ruff
+- **Typprüfer:** mypy (strict)
 - **CI:** GitHub Actions
-- **Pre-commit:** enabled
+- **Pre-commit:** aktiviert
 
-## Security Invariants
-- **Read-Only Rule:** The server must under no circumstances define mutating, writing, command execution, or shell/code execution tools. Every tool is strictly a read.
-- **Path Traversal Sandboxing:** File read paths must be strictly checked using `is_relative_to` against the authorized base directories (e.g., repository roots or the contracts folder) to prevent directory traversal escapes.
+## Security-Invarianten
+- **Read-Only-Regel:** Der Server darf unter keinen Umständen mutierende, schreibende, befehlsausführende oder Shell-/Code-ausführende Tools definieren. Jedes Tool ist strikt ein Read.
+- **Path-Traversal-Sandboxing:** File-Read-Pfade müssen strikt mit `is_relative_to` gegen die autorisierten Basis-Verzeichnisse geprüft werden (z. B. Repository-Roots oder den Contracts-Ordner), um Directory-Traversal-Escapes zu verhindern.
 
-## Project Layout
+## Projektaufbau
 ```
-src/workspace_mcp/    # all source code lives here
-tests/               # mirrors src/ layout
-docs/ai/             # AI agent docs
+src/workspace_mcp/    # hier liegt der gesamte Quellcode
+tests/               # spiegelt das src/-Layout
+docs/ai/             # Doku für KI-Agenten
 .github/workflows/   # CI
 ```
 
-## Conventions
+## Konventionen
 
-### Code style
-- Line length: 100
-- Quotes: double
-- Type hints required on all function signatures (mypy strict)
-- Docstrings: Google style for public APIs
-- `from __future__ import annotations` at top of every module
+### Code-Stil
+- Zeilenlänge: 100
+- Anführungszeichen: doppelt
+- Type-Hints auf allen Funktionssignaturen erforderlich (mypy strict)
+- Docstrings: Google-Stil für öffentliche APIs
+- `from __future__ import annotations` am Anfang jedes Moduls
 
-### Error handling
-- Raise specific exceptions, not bare `Exception`
-- Custom exceptions inherit from a project-specific base class
-- No bare `except:` clauses
-- Don't catch exceptions just to silence them
+### Fehlerbehandlung
+- Spezifische Exceptions werfen, kein nacktes `Exception`
+- Eigene Exceptions erben von einer projektspezifischen Basisklasse
+- Keine nackten `except:`-Klauseln
+- Exceptions nicht abfangen, nur um sie zu verschlucken
 
-### Naming
-- Modules: `lower_snake_case`
-- Classes: `PascalCase`
-- Functions/variables: `lower_snake_case`
-- Constants: `UPPER_SNAKE_CASE`
-- Private: leading underscore
+### Benennung
+- Module: `lower_snake_case`
+- Klassen: `PascalCase`
+- Funktionen/Variablen: `lower_snake_case`
+- Konstanten: `UPPER_SNAKE_CASE`
+- Privat: führender Unterstrich
 
 ### Testing
-- One test file per source module: `src/foo/bar.py` → `tests/foo/test_bar.py`
-- Use pytest fixtures, not `setUp`/`tearDown`
-- Mark slow tests with `@pytest.mark.slow`
-- Mark integration tests with `@pytest.mark.integration`
+- Eine Testdatei pro Quellmodul: `src/foo/bar.py` → `tests/foo/test_bar.py`
+- pytest-Fixtures verwenden, nicht `setUp`/`tearDown`
+- Langsame Tests mit `@pytest.mark.slow` markieren
+- Integrationstests mit `@pytest.mark.integration` markieren
 
 ### Commits
-- Format: `<type>: <subject>` (types: feat, fix, refactor, test, docs, chore)
-- Imperative mood: "add X" not "added X"
-- One logical change per commit
+- Format: `<type>: <subject>` (Typen: feat, fix, refactor, test, docs, chore)
+- Imperativ: „add X" nicht „added X"
+- Eine logische Änderung pro Commit
 
-## Commands (always use these)
-- `make install` — install deps and pre-commit hooks
-- `make test` — run tests with coverage
-- `make check` — full quality gate (lint + types + tests)
-- `make format` — auto-fix style
+## Befehle (immer diese verwenden)
+- `make install` — Abhängigkeiten und pre-commit-Hooks installieren
+- `make test` — Tests mit Coverage ausführen
+- `make check` — vollständiges Quality-Gate (Lint + Typen + Tests)
+- `make format` — Stil automatisch korrigieren
 
-## Known pitfalls
-*(Append discoveries here as you learn them. Examples: API rate limits, library quirks, env-specific bugs.)*
+## Bekannte Fallstricke
+*(Entdeckungen hier anhängen, sobald du sie lernst. Beispiele: API-Rate-Limits, Bibliotheks-Eigenheiten, umgebungsspezifische Bugs.)*
 
-## Glossary
-*(Domain-specific terms used in this project. Helps AI agents understand business language.)*
+## Glossar
+*(Domänenspezifische Begriffe, die in diesem Projekt verwendet werden. Hilft KI-Agenten, die Fachsprache zu verstehen.)*

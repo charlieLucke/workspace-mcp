@@ -1,28 +1,28 @@
-# Handoff
+# Übergabe
 
-> Written at session end or before hitting a usage limit.
-> The next session (or different model) starts here.
-> Overwrite this file with each new handoff.
+> Geschrieben am Sitzungsende oder bevor ein Nutzungslimit erreicht wird.
+> Die nächste Sitzung (oder ein anderes Modell) beginnt hier.
+> Diese Datei mit jeder neuen Übergabe überschreiben.
 
-# Handoff – YYYY-MM-DD HH:MM
-Model: *(which model wrote this)*
+# Übergabe – JJJJ-MM-TT HH:MM
+Modell: *(welches Modell dies geschrieben hat)*
 
-## Done in this session
+## In dieser Sitzung erledigt
 -
 
-## In progress
-- File:
-- What's working:
-- What's not yet:
+## In Arbeit
+- Datei:
+- Was funktioniert:
+- Was noch nicht:
 
-## Next concrete step
+## Nächster konkreter Schritt
 -
 
-## Open questions / decisions needed
+## Offene Fragen / nötige Entscheidungen
 -
 
-## Files the next session must read first
+## Dateien, die die nächste Sitzung zuerst lesen muss
 -
 
-## Notes / gotchas discovered
+## Notizen / entdeckte Stolperfallen
 -

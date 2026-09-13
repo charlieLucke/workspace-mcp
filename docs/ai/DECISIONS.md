@@ -1,34 +1,34 @@
-# Decisions Log
+# Entscheidungs-Log
 
-> Architecture Decision Records. Append-only. One entry per significant decision.
-> This prevents re-litigating the same questions in every new AI session.
+> Architecture Decision Records. Nur anhängen. Ein Eintrag pro signifikanter Entscheidung.
+> Das verhindert, dieselben Fragen in jeder neuen KI-Sitzung neu auszufechten.
 
 ## Format
 
 ```
-## YYYY-MM-DD: Short title
-**Decision:** What we decided
-**Reasoning:** Why
-**Alternatives considered:** What we rejected and why
-**Consequences:** What this implies going forward
+## JJJJ-MM-TT: Kurztitel
+**Entscheidung:** Was wir entschieden haben
+**Begründung:** Warum
+**Erwogene Alternativen:** Was wir verworfen haben und warum
+**Konsequenzen:** Was das für die Zukunft bedeutet
 ```
 
 ---
 
-## Initial decisions (template defaults)
+## Anfangsentscheidungen (Template-Defaults)
 
-## 2026-XX-XX: Use uv as package manager
-**Decision:** uv (over pip+venv, poetry, pdm).
-**Reasoning:** 10-100x faster than pip; unified tool replacing pip, pip-tools, virtualenv, pyenv; lockfile by default; backed by Astral (same team as ruff).
-**Alternatives considered:** Poetry (slower, more config overhead, separate from venv tooling). pip+venv (no lockfile by default, manual workflow).
-**Consequences:** All dependency operations go through `uv add` / `uv remove` / `uv sync`. Never edit pyproject.toml dependencies manually.
+## 2026-XX-XX: uv als Paketmanager verwenden
+**Entscheidung:** uv (statt pip+venv, poetry, pdm).
+**Begründung:** 10–100× schneller als pip; vereintes Werkzeug, das pip, pip-tools, virtualenv, pyenv ersetzt; Lockfile standardmäßig; getragen von Astral (dasselbe Team wie ruff).
+**Erwogene Alternativen:** Poetry (langsamer, mehr Konfigurationsaufwand, getrennt vom venv-Tooling). pip+venv (kein Lockfile by default, manueller Workflow).
+**Konsequenzen:** Alle Dependency-Operationen laufen über `uv add` / `uv remove` / `uv sync`. Niemals pyproject.toml-Abhängigkeiten manuell bearbeiten.
 
-## 2026-XX-XX: Use ruff for lint and format
-**Decision:** ruff replaces black + flake8 + isort + pyupgrade.
-**Reasoning:** Single tool, much faster, consistent config, actively maintained.
-**Consequences:** Don't add black, flake8, or isort as separate tools.
+## 2026-XX-XX: ruff für Lint und Format verwenden
+**Entscheidung:** ruff ersetzt black + flake8 + isort + pyupgrade.
+**Begründung:** Einzelwerkzeug, deutlich schneller, konsistente Konfiguration, aktiv gepflegt.
+**Konsequenzen:** black, flake8 oder isort nicht als separate Werkzeuge ergänzen.
 
-## 2026-XX-XX: Mypy strict mode
-**Decision:** Mypy in strict mode from day one.
-**Reasoning:** Strictness is much easier to enforce from the start than retrofit. Catches whole categories of bugs at write-time.
-**Consequences:** Every function needs full type hints. `# type: ignore` requires an inline comment explaining why.
+## 2026-XX-XX: Mypy Strict Mode
+**Entscheidung:** Mypy im Strict Mode ab Tag eins.
+**Begründung:** Striktheit ist von Anfang an viel leichter durchzusetzen als nachzurüsten. Fängt ganze Bug-Kategorien zur Schreibzeit ab.
+**Konsequenzen:** Jede Funktion braucht vollständige Type-Hints. `# type: ignore` erfordert einen Inline-Kommentar mit Begründung.

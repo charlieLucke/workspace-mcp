@@ -1,118 +1,118 @@
 # workspace-mcp
 
-**A read-only MCP server that lets a planning AI read an entire multi-repo system —
-its architecture map, routing, contracts, dependency graph and scoped repo files —
-directly, instead of pasting files in by hand.**
+**Ein read-only MCP-Server, der einer Planungs-KI ein ganzes Multi-Repo-System
+direkt lesbar macht — Architekturkarte, Routing, Contracts, Abhängigkeitsgraph und
+gescopte Repo-Dateien — statt Dateien von Hand einzufügen.**
 
-It is the design-time introspection layer for a local RAG system built from several
-independent service repos (titan, brain-mcp, brain-dashboard, obsidian-inbox-watcher),
-coordinated by a workspace "meta-repo".
+Er ist die Design-Zeit-Introspektionsschicht für ein lokales RAG-System aus mehreren
+unabhängigen Service-Repos (titan, brain-mcp, brain-dashboard, obsidian-inbox-watcher),
+koordiniert von einem Workspace-„Meta-Repo".
 
-## The problem it solves
+## Das Problem, das er löst
 
-Architecting a change across several repos means a strong reasoning model (e.g.
-Claude/Opus in a planning chat) needs to *see* the system: which service owns what,
-which contracts couple them, what the real code looks like. Without tooling you
-copy-paste files into the chat by hand. workspace-mcp exposes that context as MCP
-tools, so the planning model reads the live workspace itself.
+Eine Änderung über mehrere Repos hinweg zu entwerfen heißt: ein starkes
+Reasoning-Modell (z. B. Claude/Opus in einem Planungs-Chat) muss das System *sehen* —
+welcher Service was besitzt, welche Contracts sie koppeln, wie der echte Code aussieht.
+Ohne Tooling kopiert man Dateien von Hand in den Chat. workspace-mcp stellt diesen
+Kontext als MCP-Tools bereit, sodass das Planungsmodell den Live-Workspace selbst liest.
 
 ```mermaid
 flowchart LR
-    P(("Planning chat<br/>(Claude / Opus)")) <-->|"MCP tools (read-only)"| W["workspace-mcp"]
-    W -->|"reads"| WS["workspace meta-repo<br/>SYSTEM.md · ROUTING.md · contracts/ · repos/*"]
+    P(("Planungs-Chat<br/>(Claude / Opus)")) <-->|"MCP-Tools (read-only)"| W["workspace-mcp"]
+    W -->|"liest"| WS["Workspace-Meta-Repo<br/>SYSTEM.md · ROUTING.md · contracts/ · repos/*"]
     classDef here fill:#2b6cb0,stroke:#1a365d,color:#fff,stroke-width:2px;
     class W here
 ```
 
-## Tools (all strictly read-only)
+## Werkzeuge (alle strikt read-only)
 
-| Tool | Returns |
+| Werkzeug | Liefert |
 |---|---|
-| `list_repos` | service names + roles from the manifest |
-| `get_system_map` | the system architecture & data-flow doc |
-| `get_routing` | which repo owns which kind of change |
-| `get_contracts_overview` | the human-readable inter-service contracts |
-| `list_contracts` | the machine-readable contract files |
-| `get_contract` | the contents of one contract (sandboxed) |
-| `dependency_graph` | the consumer → provider edges between services |
-| `read_repo_file` | a single repo file (sandboxed, read-only, size-capped) |
+| `list_repos` | Service-Namen + Rollen aus dem Manifest |
+| `get_system_map` | das System-Architektur- & Datenfluss-Dokument |
+| `get_routing` | welches Repo welche Art von Änderung besitzt |
+| `get_contracts_overview` | die menschenlesbaren Inter-Service-Contracts |
+| `list_contracts` | die maschinenlesbaren Contract-Dateien |
+| `get_contract` | den Inhalt eines Contracts (gesandboxt) |
+| `dependency_graph` | die Konsument → Provider-Kanten zwischen Services |
+| `read_repo_file` | eine einzelne Repo-Datei (gesandboxt, read-only, größenbegrenzt) |
 
-## Design highlights
+## Design-Highlights
 
-- **Read-only is a hard security boundary.** The server is meant to be reachable
-  over the same public path as the system's other connector — so it must never be
-  able to write the repo or run commands. Every tool is a pure read; there are no
-  write/scaffold/exec tools, by design.
-- **Path-traversal sandboxing.** `read_repo_file` and `get_contract` resolve the
-  target path and reject anything that escapes the authorized base directory
-  (`is_relative_to` check) — no `..` or absolute-path escapes.
-- **Reverse-proxy deployment.** Claude custom connectors only work reliably on port
-  443, but the node's single Tailscale Funnel root is already taken by another MCP
-  server. A **Caddy reverse proxy** fronts the one 443 funnel and routes by path
-  (`/` → the other server, `/ws/*` → workspace-mcp), with the server advertising its
-  OAuth/MCP URLs under `/ws`. See [`deploy/README.md`](deploy/README.md).
-- **Reuses existing tooling.** Graph/manifest queries shell out to the workspace's
-  own tested `scripts/manifest.py` rather than re-parsing YAML.
-- **Auth.** In the public HTTP mode, a GitHub OAuth proxy with a login allowlist
-  gates every request (mirrors the sibling brain-mcp pattern). In local `stdio` mode
-  no auth is needed.
+- **Read-only als harte Security-Grenze.** Der Server soll über denselben
+  öffentlichen Pfad erreichbar sein wie der andere Connector des Systems — er darf
+  also nie das Repo schreiben oder Befehle ausführen können. Jedes Tool ist ein
+  reiner Read; es gibt by design keine Schreib-/Scaffold-/Exec-Tools.
+- **Path-Traversal-Sandboxing.** `read_repo_file` und `get_contract` lösen den
+  Zielpfad auf und lehnen alles ab, was das autorisierte Basis-Verzeichnis verlässt
+  (`is_relative_to`-Check) — keine `..`- oder Absolutpfad-Escapes.
+- **Reverse-Proxy-Deployment.** Claude-Custom-Connectors funktionieren nur auf Port
+  443 zuverlässig, aber der einzige Tailscale-Funnel-Root des Nodes ist bereits von
+  einem anderen MCP-Server belegt. Ein **Caddy-Reverse-Proxy** steht vor der einen
+  443-Funnel und routet nach Pfad (`/` → der andere Server, `/ws/*` → workspace-mcp);
+  der Server bewirbt seine OAuth-/MCP-URLs unter `/ws`. Siehe
+  [`deploy/README.md`](deploy/README.md).
+- **Wiederverwendung bestehender Tools.** Graph-/Manifest-Abfragen rufen das eigene,
+  getestete `scripts/manifest.py` des Workspaces auf, statt YAML neu zu parsen.
+- **Auth.** Im öffentlichen HTTP-Modus gatet ein GitHub-OAuth-Proxy mit Login-Allowlist
+  jeden Request (spiegelt das Schwester-Pattern von brain-mcp). Im lokalen
+  `stdio`-Modus ist keine Auth nötig.
 
-## Setup
+## Einrichtung
 
-Requires [uv](https://docs.astral.sh/uv/) and Python 3.12+.
-
-```bash
-make install    # install dependencies + pre-commit hooks
-```
-
-Run locally over stdio (no Caddy, no funnel, no OAuth):
+Erfordert [uv](https://docs.astral.sh/uv/) und Python 3.12+.
 
 ```bash
-python -m workspace_mcp     # WORKSPACE_ROOT points at the workspace checkout
+make install    # Abhängigkeiten + pre-commit-Hooks installieren
 ```
 
-The public connector deployment (Caddy + Tailscale Funnel + GitHub OAuth) is
-documented in [`deploy/README.md`](deploy/README.md).
-
-## Development
+Lokal über stdio ausführen (kein Caddy, keine Funnel, kein OAuth):
 
 ```bash
-make test       # run tests with coverage (incl. the path-traversal rejection test)
-make check      # full quality gate: lint + types + tests
-make format     # auto-fix style issues
-make help       # list all available commands
+python -m workspace_mcp     # WORKSPACE_ROOT zeigt auf den Workspace-Checkout
 ```
 
-## Project Structure
+Das Deployment als öffentlicher Connector (Caddy + Tailscale Funnel + GitHub OAuth)
+ist in [`deploy/README.md`](deploy/README.md) dokumentiert.
+
+## Entwicklung
+
+```bash
+make test       # Tests mit Coverage (inkl. Path-Traversal-Ablehnungs-Test)
+make check      # vollständiges Quality-Gate: Lint + Typen + Tests
+make format     # Style-Probleme automatisch beheben
+make help       # alle verfügbaren Befehle auflisten
+```
+
+## Projektstruktur
 
 ```
-src/workspace_mcp/    Source code (config, auth, the read-only MCP tools)
-tests/               Pytest tests (mirrors src/ layout)
-deploy/              Caddy + systemd units + connector guide
-docs/ai/             architecture, decisions and plans
-.github/workflows/   CI configuration
+src/workspace_mcp/    Quellcode (Config, Auth, die read-only MCP-Tools)
+tests/               Pytest-Tests (spiegelt das src/-Layout)
+deploy/              Caddy + systemd-Units + Connector-Anleitung
+docs/ai/             Architektur, Entscheidungen und Pläne
+.github/workflows/   CI-Konfiguration
 ```
 
 ## Tooling
 
-| Tool         | Purpose                              |
+| Tool         | Zweck                                |
 |--------------|--------------------------------------|
-| **uv**       | Package manager + Python installer   |
-| **ruff**     | Linter + formatter                   |
-| **mypy**     | Static type checker (strict mode)    |
-| **pytest**   | Test runner with coverage            |
-| **pre-commit** | Git hook runner                    |
+| **uv**       | Paketmanager + Python-Installer      |
+| **ruff**     | Linter + Formatter                   |
+| **mypy**     | Statischer Typprüfer (Strict Mode)   |
+| **pytest**   | Test-Runner mit Coverage             |
+| **pre-commit** | Git-Hook-Runner                    |
 
-All tools run in CI on every push.
+Alle Tools laufen bei jedem Push in der CI.
 
-## Documentation & developer workflow
+## Dokumentation & Entwickler-Workflow
 
-In-depth architecture and design decisions live in [`docs/ai/`](docs/ai/). These
-files also drive a structured AI-assisted development workflow; `CLAUDE.md`
-(mirrored as `AGENTS.md`/`GEMINI.md`) is the entry point for any agent.
+Vertiefende Architektur- und Designentscheidungen liegen in [`docs/ai/`](docs/ai/).
+Diese Dateien dienen zugleich einem strukturierten KI-gestützten Entwicklungsworkflow;
+`CLAUDE.md` (gespiegelt als `AGENTS.md`/`GEMINI.md`) ist der Einstiegspunkt für jeden Agenten.
 
-🇩🇪 Eine deutsche Fassung dieser README gibt es unter [README.de.md](README.de.md).
 
-## License
+## Lizenz
 
-MIT — see [LICENSE](LICENSE).
+MIT — siehe [LICENSE](LICENSE).

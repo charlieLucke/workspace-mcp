@@ -1,78 +1,80 @@
-# Architecture
+# Architektur
 
-> System-level design. Update when modules, contracts, or data models change.
+> Design auf Systemebene. Aktualisieren, wenn sich Module, Contracts oder Datenmodelle ändern.
 
-## Overview
+## Überblick
 
-workspace-mcp is a small, **read-only** MCP server that exposes a multi-repo
-workspace meta-repo (its system map, routing, contracts, dependency graph and
-individual repo files) to a planning chat. It is a **design-time** tool — it owns no
-data, model or runtime state, and it is deliberately separate from the RAG runtime
-path (titan/brain-mcp/…). Its single hard invariant is that **every tool is a pure
-read**: there are no write, scaffold, or command-execution tools.
+workspace-mcp ist ein kleiner, **read-only** MCP-Server, der ein
+Multi-Repo-Workspace-Meta-Repo (seine Systemkarte, Routing, Contracts,
+Abhängigkeitsgraph und einzelne Repo-Dateien) einem Planungs-Chat bereitstellt. Es ist
+ein **Design-Zeit**-Tool — es besitzt keine Daten, kein Modell, keinen Runtime-State
+und ist bewusst vom RAG-Runtime-Pfad (titan/brain-mcp/…) getrennt. Seine eine harte
+Invariante: **jedes Tool ist ein reiner Read** — es gibt keine Schreib-, Scaffold-
+oder Befehlsausführungs-Tools.
 
 ```
-Planning chat (Claude/Opus)
+Planungs-Chat (Claude/Opus)
         │  MCP (stdio  |  HTTP via Caddy /ws + GitHub OAuth)
         ▼
-   workspace-mcp ──reads──▶ WORKSPACE_ROOT
+   workspace-mcp ──liest──▶ WORKSPACE_ROOT
                             ├── docs/ai/SYSTEM.md, ROUTING.md, CONTRACTS.md
-                            ├── contracts/*            (machine-readable)
+                            ├── contracts/*            (maschinenlesbar)
                             ├── scripts/manifest.py    (graph / names / consumers)
-                            └── repos/<name>/...        (scoped, read-only file reads)
+                            └── repos/<name>/...        (gescopte, read-only File-Reads)
 ```
 
-## Module map
+## Modulübersicht
 
 ```
 src/workspace_mcp/
-├── config.py    # Settings (env prefix WORKSPACE_): workspace_root, transport/host/port, GitHub OAuth
-├── auth.py      # GitHub OAuth proxy + allowlist verifier (HTTP mode); mirrors brain-mcp/auth.py
-├── server.py    # FastMCP server + the read-only tools; _read() (sandboxed) + _manifest() helpers
-└── main.py      # entry point; selects stdio vs. http transport
+├── config.py    # Settings (Env-Präfix WORKSPACE_): workspace_root, Transport/Host/Port, GitHub-OAuth
+├── auth.py      # GitHub-OAuth-Proxy + Allowlist-Verifier (HTTP-Modus); spiegelt brain-mcp/auth.py
+├── server.py    # FastMCP-Server + die read-only-Tools; _read() (gesandboxt) + _manifest()-Helper
+└── main.py      # Einstiegspunkt; wählt stdio- vs. http-Transport
 deploy/
-├── Caddyfile             # path-routing reverse proxy (/ → other MCP, /ws → this one)
-├── caddy.service         # systemd user service (enabled — fronts the 443 funnel)
-├── workspace-mcp.service # systemd user service (the server on :9300)
-└── README.md             # connector + reverse-proxy deployment guide
+├── Caddyfile             # Pfad-routender Reverse-Proxy (/ → anderer MCP, /ws → dieser)
+├── caddy.service         # systemd-User-Service (enabled — steht vor der 443-Funnel)
+├── workspace-mcp.service # systemd-User-Service (der Server auf :9300)
+└── README.md             # Connector- + Reverse-Proxy-Deployment-Anleitung
 ```
 
-## Tools & how they resolve
+## Werkzeuge & wie sie auflösen
 
-- **Doc/contract content** (`get_system_map`, `get_routing`, `get_contracts_overview`,
-  `list_contracts`, `get_contract`) → read the plain-text files under
-  `WORKSPACE_ROOT`, sandboxed via `is_relative_to`.
-- **Manifest/graph** (`list_repos`, `dependency_graph`) → shell out to the
-  workspace's own `scripts/manifest.py` (reuse the real, tested logic).
-- **Scoped file read** (`read_repo_file`) → resolve `repos/<repo>/<relpath>` and
-  reject anything escaping that repo's root.
+- **Doc-/Contract-Inhalte** (`get_system_map`, `get_routing`, `get_contracts_overview`,
+  `list_contracts`, `get_contract`) → die Plain-Text-Dateien unter `WORKSPACE_ROOT`
+  lesen, via `is_relative_to` gesandboxt.
+- **Manifest/Graph** (`list_repos`, `dependency_graph`) → das eigene
+  `scripts/manifest.py` des Workspaces aufrufen (die echte, getestete Logik wiederverwenden).
+- **Gescopter File-Read** (`read_repo_file`) → `repos/<repo>/<relpath>` auflösen und
+  alles ablehnen, was den Root dieses Repos verlässt.
 
-Every tool returns Markdown/plain text and turns errors into a short `"Error: …"`
-string — it never raises to the transport.
+Jedes Tool gibt Markdown/Plain-Text zurück und verwandelt Fehler in einen kurzen
+`"Error: …"`-String — es wirft nie zum Transport.
 
-## External services
+## Externe Services
 
-| Service | Connection | Purpose |
+| Service | Verbindung | Zweck |
 |---|---|---|
-| GitHub OAuth | HTTPS (api.github.com) | authentication + login allowlist (HTTP mode only) |
-| Caddy | local reverse proxy (`:8088`) | routes `/ws/*` from the shared 443 funnel to this server |
-| Tailscale Funnel | public HTTPS | makes the local server reachable from the Anthropic cloud |
-| workspace files | filesystem (read-only) | the meta-repo content the tools expose |
+| GitHub OAuth | HTTPS (api.github.com) | Authentifizierung + Login-Allowlist (nur HTTP-Modus) |
+| Caddy | lokaler Reverse-Proxy (`:8088`) | routet `/ws/*` von der geteilten 443-Funnel an diesen Server |
+| Tailscale Funnel | öffentliches HTTPS | macht den lokalen Server aus der Anthropic-Cloud erreichbar |
+| Workspace-Dateien | Dateisystem (read-only) | der Meta-Repo-Inhalt, den die Tools bereitstellen |
 
-## Security & boundaries
+## Sicherheit & Grenzen
 
-- **Read-only is non-negotiable** — no mutating tools may ever be added; the server
-  is reachable on a public path.
-- **Path sandboxing** — `read_repo_file` and `get_contract` enforce strict
-  `is_relative_to` checks against their authorized base dirs to block traversal.
-- **Auth only in HTTP mode** — stdio is local/unauthenticated.
+- **Read-only ist nicht verhandelbar** — es dürfen nie mutierende Tools ergänzt
+  werden; der Server ist über einen öffentlichen Pfad erreichbar.
+- **Pfad-Sandboxing** — `read_repo_file` und `get_contract` erzwingen strikte
+  `is_relative_to`-Checks gegen ihre autorisierten Basis-Verzeichnisse, um Traversal zu blockieren.
+- **Auth nur im HTTP-Modus** — stdio ist lokal/nicht authentifiziert.
 
 ## Deployment
 
-- **Local:** `stdio` transport, no auth — for development and for a local planning
-  client.
-- **Public connector:** the server runs on `0.0.0.0:9300` (HTTP); Caddy fronts the
-  single Tailscale Funnel on port 443 and routes `/ws/*` to it, because Claude
-  connectors require port 443 and that root is already used by a sibling MCP server.
-  The server advertises its base URL as `https://<host>/ws`. Details:
+- **Lokal:** `stdio`-Transport, keine Auth — für die Entwicklung und einen lokalen
+  Planungs-Client.
+- **Öffentlicher Connector:** der Server läuft auf `0.0.0.0:9300` (HTTP); Caddy steht
+  vor der einzigen Tailscale-Funnel auf Port 443 und routet `/ws/*` an ihn, weil
+  Claude-Connectors Port 443 verlangen und dieser Root bereits von einem
+  Schwester-MCP-Server genutzt wird. Der Server bewirbt seine Basis-URL als
+  `https://<host>/ws`. Details:
   [`deploy/README.md`](../../deploy/README.md).

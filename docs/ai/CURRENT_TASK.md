@@ -1,17 +1,17 @@
-# Current Task
+# Aktuelle Aufgabe
 
-> Keep this short. One screen max. Update as you progress.
+> Kurz halten. Maximal ein Bildschirm. Mit dem Fortschritt aktualisieren.
 
-## Goal
-*(What are we building right now? One or two sentences.)*
+## Ziel
+*(Was bauen wir gerade? Ein oder zwei Sätze.)*
 
-## Sub-steps
+## Teilschritte
 - [ ] ...
 - [ ] ...
 - [ ] ...
 
-## Blockers
-*(Open questions, missing info, decisions needed before continuing.)*
+## Blocker
+*(Offene Fragen, fehlende Infos, nötige Entscheidungen vor dem Weitermachen.)*
 
-## Notes
-*(Useful context for the current task that doesn't belong in CONTEXT.md.)*
+## Notizen
+*(Nützlicher Kontext für die aktuelle Aufgabe, der nicht in CONTEXT.md gehört.)*
