@@ -80,7 +80,7 @@ def _read(rel: str) -> str:
 def _manifest(*args: str) -> str:
     """Shell out to the workspace's own scripts/manifest.py using sys.executable."""
     manifest_path = settings.workspace_root / "scripts" / "manifest.py"
-    res = subprocess.run(
+    res = subprocess.run(  # noqa: S603 — sys.executable plus ein repo-eigenes Skript, Listenargumente, keine Shell
         [sys.executable, str(manifest_path), *args],
         cwd=settings.workspace_root,
         capture_output=True,

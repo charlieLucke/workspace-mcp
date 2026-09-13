@@ -43,12 +43,35 @@ select = [
     "N",   # pep8-naming
     "SIM", # flake8-simplify
     "RUF", # ruff-specific rules
+
+    # --- AI-code audit gate -------------------------------------------------
+    # Added 2026-09-13 after auditing every repo against the "bad AI code"
+    # catalogue. These four are the rules that catalogue turns into findings:
+    # a broad catch that hides a failure, an assert standing in for validation,
+    # a request without a timeout, an f-string inside a log call, and an import
+    # buried in a function body. Each one is allowed where it is justified —
+    # but then it carries a `noqa` that says why, instead of passing silently.
+    "BLE",     # blind `except Exception`
+    "S",       # flake8-bandit: assert-as-validation, missing timeout, shell=True
+    "G",       # logging: no f-strings in log calls
+    "PLC0415", # import inside a function — deferred imports must justify themselves
 ]
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101"]  # allow `assert` in tests
+"tests/**/*.py" = [
+    "S101",    # assert is the point of a test
+    "S105",    # fake tokens in fixtures are not secrets
+    "S106",
+    "PLC0415", # a test may import inside the test that needs it
+    "S108",    # "/tmp/..." in a test is a path literal, not a temp file
+    "S104",    # a test may assert that "0.0.0.0" is accepted
+]
 "src/workspace_mcp/**" = ["N999"]  # placeholder name, replaced by init-project.sh
+# Every tool here returns a string to an MCP client. Letting an exception escape
+# ends the client's session instead of telling it what went wrong, so the broad
+# catch at the tool boundary is the contract, not laziness.
+"src/workspace_mcp/server.py" = ["BLE001"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -96,3 +119,16 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "if __name__ == .__main__.:",
 ]
+
+# ---------- deptry (dependency audit) ----------
+# Catches the three dependency defects the AI-code audit looks for: a package
+# imported but never declared, a package declared but never imported, and a
+# hallucinated name that resolves to nothing. The map below exists because the
+# import name and the package name differ — without it deptry reports both
+# halves of the same pair and the check stops meaning anything.
+[tool.deptry]
+known_first_party = ["workspace_mcp"]
+exclude = [".venv", "tests", "evals", "tools"]
+
+[tool.deptry.package_module_name_map]
+pyyaml = ["yaml"]

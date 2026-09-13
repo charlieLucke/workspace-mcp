@@ -31,4 +31,19 @@ repos:
     hooks:
       - id: mypy
         files: ^(src|tests)/
-        additional_dependencies: []
+        # The hook runs mypy in its own environment, so it has to be told what
+        # the project depends on. Left empty it types fastmcp and BaseSettings
+        # as Any and then reports every decorated tool as untyped — errors that
+        # `make check` does not see, because there mypy runs in the venv.
+        additional_dependencies:
+          - fastmcp>=3.3.1
+          - pydantic>=2.0
+          - pydantic-settings>=2.14.1
+          - pytest>=8.0
+
+  # gitleaks: no secret reaches a commit. The repos here are meant to go public,
+  # and a secret in history is not removed by deleting it from the tip.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.0
+    hooks:
+      - id: gitleaks
